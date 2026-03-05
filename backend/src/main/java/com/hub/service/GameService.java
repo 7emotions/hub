@@ -47,7 +47,21 @@ public class GameService {
             com.hub.draughts.List list = Gen.gen_moves(pos);
             long mv = list.find(Bit.bit(from) | Bit.bit(to));
 
-            if (mv == Move.None || mv == Move.Amb) {
+            if (mv == Move.Amb) {
+                // Multiple capture sequences share the same from/to but differ in
+                // captured pieces.  Any maximal capture is valid in international
+                // draughts, so pick the first matching move.
+                long bit = Bit.bit(from) | Bit.bit(to);
+                for (int i = 0; i < list.size(); i++) {
+                    long m = list.move(i);
+                    if ((bit & ~m) == 0) {
+                        mv = m;
+                        break;
+                    }
+                }
+            }
+
+            if (mv == Move.None) {
                 response.setSuccess(false);
                 response.setMessage("Illegal move");
                 response.setBoard(buildBoardDTO());
@@ -136,11 +150,15 @@ public class GameService {
         dto.setFen(FEN.to_fen(pos));
 
         long lastMove = game.last_move();
-        if (lastMove != Move.None) {
+        if (lastMove != Move.None && game.i() > 0) {
             java.util.List<Long> highlighted = new ArrayList<>();
-            pos = game.pos();
-            long froms = lastMove & pos.side(pos.turn());
-            long tos = lastMove & pos.empty();
+
+            // Use the position BEFORE the last move so that the mover's piece
+            // is still on its original square and captured pieces are still on
+            // the board.  This lets us correctly extract from/to/caps.
+            Pos prevPos = game.pos(game.i() - 1);
+            long froms = lastMove & prevPos.side(prevPos.turn());
+            long tos = lastMove & prevPos.empty();
             if (tos == 0) tos = froms;
 
             int from = Bit.first(froms);
