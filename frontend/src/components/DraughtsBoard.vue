@@ -9,7 +9,7 @@
           'cell--light': cell.light,
           'cell--dark': !cell.light,
           'cell--selected': cell.squareNum === selectedSquare,
-          'cell--highlighted': highlightedSet.has(cell.squareNum),
+          'cell--highlighted': highlightedSquares.includes(cell.squareNum),
           'cell--legal-target': cell.squareNum !== null && isLegalTarget(cell.squareNum)
         }"
         @click="onCellClick(cell)"
@@ -25,20 +25,60 @@
 </template>
 
 <script setup>
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 
 const props = defineProps({
   board: { type: Array, default: () => [] },
   turn: { type: Number, default: 0 },
-  legalMoves: { type: Array, default: () => [] },
-  highlightedSquares: { type: Array, default: () => [] }
+  legalMoves: { type: Array, default: () => [] }
 })
 
 const emit = defineEmits(['move'])
 
 const selectedSquare = ref(null)
 
-const highlightedSet = computed(() => new Set(props.highlightedSquares))
+const highlightedSquares = ref([])
+
+const movesFromSelected = computed(() => {
+  if (selectedSquare.value === null) return []
+  return props.legalMoves.filter(m => m.from === selectedSquare.value)
+})
+
+// 定义辅助函数，避免在 watch 中引用未定义的函数
+function hasMovesFrom(sq) {
+  return props.legalMoves.some(m => m.from === sq)
+}
+
+function updateHighlightedSquares() {
+  if (selectedSquare.value === null) {
+    highlightedSquares.value = []
+    return
+  }
+  // 高亮显示当前选中棋子的合法移动目标
+  highlightedSquares.value = movesFromSelected.value.map(m => m.to)
+}
+
+// 监听 legalMoves 变化，确保在合法移动更新时重置选中状态
+watch(() => props.legalMoves, (newMoves, oldMoves) => {
+  // legalMoves 更新后，检查选中状态
+  // 如果 legalMoves 为空，取消选中
+  if (!newMoves || newMoves.length === 0) {
+    selectedSquare.value = null
+    highlightedSquares.value = []
+    return
+  }
+  
+  if (selectedSquare.value !== null) {
+    // 如果之前选中的棋子在新的合法移动列表中没有移动，取消选中
+    if (!hasMovesFrom(selectedSquare.value)) {
+      selectedSquare.value = null
+      highlightedSquares.value = []
+    } else {
+      // 否则更新高亮
+      updateHighlightedSquares()
+    }
+  }
+}, { deep: true })
 
 const cells = computed(() => {
   const result = []
@@ -64,10 +104,7 @@ const cells = computed(() => {
   return result
 })
 
-const movesFromSelected = computed(() => {
-  if (selectedSquare.value === null) return []
-  return props.legalMoves.filter(m => m.from === selectedSquare.value)
-})
+// movesFromSelected 已移至 watch 之前
 
 function isLegalTarget(sq) {
   return movesFromSelected.value.some(m => m.to === sq)
@@ -84,24 +121,41 @@ function pieceClass(piece) {
 function onCellClick(cell) {
   if (cell.light) return
 
+  // 如果已经选中了一个格子
   if (selectedSquare.value !== null) {
+    // 如果点击的是合法的移动目标，执行移动
     if (isLegalTarget(cell.squareNum)) {
       emit('move', { from: selectedSquare.value, to: cell.squareNum })
       selectedSquare.value = null
+      highlightedSquares.value = []
       return
     }
+    // 如果点击的是同一个格子，取消选中
+    if (cell.squareNum === selectedSquare.value) {
+      selectedSquare.value = null
+      highlightedSquares.value = []
+      return
+    }
+    // 如果点击的是另一个有棋子且有合法移动的格子，切换选中
+    if (cell.piece && hasMovesFrom(cell.squareNum)) {
+      selectedSquare.value = cell.squareNum
+      updateHighlightedSquares()
+      return
+    }
+    // 点击其他地方，取消选中
+    selectedSquare.value = null
+    highlightedSquares.value = []
+    return
   }
 
+  // 如果点击的是有棋子且有合法移动的格子，选中它
   if (cell.piece && hasMovesFrom(cell.squareNum)) {
     selectedSquare.value = cell.squareNum
-  } else {
-    selectedSquare.value = null
+    updateHighlightedSquares()
   }
 }
 
-function hasMovesFrom(sq) {
-  return props.legalMoves.some(m => m.from === sq)
-}
+// 函数定义已移至 watch 之前
 </script>
 
 <style scoped>

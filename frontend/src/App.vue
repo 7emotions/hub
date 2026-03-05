@@ -8,7 +8,6 @@
         :board="board"
         :turn="turn"
         :legal-moves="legalMoves"
-        :highlighted-squares="highlightedSquares"
         @move="onMove"
       />
       <GameControls
@@ -41,6 +40,9 @@ const whiteTime = ref(300)
 const blackTime = ref(300)
 const isEnd = ref(false)
 
+const emit = defineEmits(['newGame', 'undo', 'redo', 'loadPosition'])
+
+
 function applyState(state) {
   if (state.board) {
     board.value = state.board.board
@@ -68,6 +70,8 @@ async function onMove({ from, to }) {
     const resp = await makeMove(from, to)
     if (resp.board) {
       applyState(resp)
+      // 移动后清空高亮
+      highlightedSquares.value = []
     } else {
       await loadState()
     }
@@ -76,6 +80,7 @@ async function onMove({ from, to }) {
     await loadState()
   }
 }
+
 
 async function onNewGame() {
   try {

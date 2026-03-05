@@ -5,6 +5,7 @@ public class LegalMoveDTO {
     private int from;
     private int to;
     private String notation;
+    private int[] captured;
 
     public int getFrom() {
         return from;
@@ -28,5 +29,13 @@ public class LegalMoveDTO {
 
     public void setNotation(String notation) {
         this.notation = notation;
+    }
+
+    public int[] getCaptured() {
+        return captured;
+    }
+
+    public void setCaptured(int[] captured) {
+        this.captured = captured;
     }
 }

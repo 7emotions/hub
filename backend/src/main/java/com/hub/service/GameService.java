@@ -51,6 +51,7 @@ public class GameService {
                 response.setSuccess(false);
                 response.setMessage("Illegal move");
                 response.setBoard(buildBoardDTO());
+                response.setLegalMoves(buildLegalMoves());
                 return response;
             }
 
@@ -58,10 +59,12 @@ public class GameService {
             response.setSuccess(true);
             response.setMessage("Move played");
             response.setBoard(buildBoardDTO());
+            response.setLegalMoves(buildLegalMoves());
         } catch (Bad_Input e) {
             response.setSuccess(false);
             response.setMessage("Invalid square number");
             response.setBoard(buildBoardDTO());
+            response.setLegalMoves(buildLegalMoves());
         }
 
         return response;
@@ -135,11 +138,19 @@ public class GameService {
         long lastMove = game.last_move();
         if (lastMove != Move.None) {
             java.util.List<Long> highlighted = new ArrayList<>();
-            for (long b = lastMove; b != 0; b = Bit.rest(b)) {
-                int sq = Bit.first(b);
-                if (Square.is_valid(sq)) {
-                    highlighted.add((long) Square.to_std(sq));
-                }
+            pos = game.pos();
+            long froms = lastMove & pos.side(pos.turn());
+            long tos = lastMove & pos.empty();
+            if (tos == 0) tos = froms;
+
+            int from = Bit.first(froms);
+            int to = Bit.first(tos);
+
+            if (Square.is_valid(from)) {
+                highlighted.add((long) Square.to_std(from));
+            }
+            if (Square.is_valid(to)) {
+                highlighted.add((long) Square.to_std(to));
             }
             dto.setHighlightedSquares(highlighted.stream().mapToLong(Long::longValue).toArray());
         } else {
@@ -168,6 +179,20 @@ public class GameService {
             dto.setFrom(Square.to_std(from));
             dto.setTo(Square.to_std(to));
             dto.setNotation(Move.to_string(mv, pos));
+
+            // 提取被吃掉的棋子位置
+            long caps = mv & pos.side(Side.opp(pos.turn()));
+            if (caps != 0) {
+                java.util.List<Integer> capturedList = new ArrayList<>();
+                for (long b = caps; b != 0; b = Bit.rest(b)) {
+                    int sq = Bit.first(b);
+                    capturedList.add(Square.to_std(sq));
+                }
+                dto.setCaptured(capturedList.stream().mapToInt(Integer::intValue).toArray());
+            } else {
+                dto.setCaptured(new int[0]);
+            }
+
             moves.add(dto);
         }
 

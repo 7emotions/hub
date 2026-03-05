@@ -16,7 +16,7 @@
       </div>
     </div>
 
-    <div class="controls__clocks">
+    <div class="controls__clocks" v-show="false">
       <div class="clock">
         <span class="clock__label">⬜ 白方</span>
         <span class="clock__time">{{ formatTime(whiteTime) }}</span>
@@ -33,7 +33,7 @@
       <button class="btn" @click="emit('redo')">重做</button>
     </div>
 
-    <div class="controls__fen">
+    <div class="controls__fen" v-show="false">
       <input
         v-model="fenInput"
         type="text"
