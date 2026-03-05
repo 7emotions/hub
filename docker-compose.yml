@@ -1,0 +1,40 @@
+version: '3.8'
+
+services:
+  backend:
+    image: eclipse-temurin:21-jre
+    container_name: hub-backend
+    volumes:
+      - ./backend/target/hub-backend-0.0.1-SNAPSHOT.jar:/app.jar
+      - ./backend/src/main/resources/application.properties:/app.properties
+    working_dir: /app
+    command: ["java", "-jar", "-Dspring.config.location=classpath:/application.properties,/app.properties", "/app.jar"]
+    ports:
+      - "8080:8080"
+    networks:
+      - hub-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  frontend:
+    image: nginx:alpine
+    container_name: hub-frontend
+    volumes:
+      - ./frontend/dist:/usr/share/nginx/html
+      - ./frontend/dist/nginx.conf:/etc/nginx/conf.d/default.conf
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    networks:
+      - hub-network
+    restart: unless-stopped
+
+networks:
+  hub-network:
+    driver: bridge
